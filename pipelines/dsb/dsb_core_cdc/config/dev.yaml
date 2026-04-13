@@ -1,0 +1,55 @@
+job:
+  name: dsb_core_cdc
+  version: v1
+  domain: dsb
+  sql_root: pipelines/dsb/dsb_core_cdc/sql
+  run_order:
+    - 00_sources
+    - 90_sinks
+
+flink:
+  sql_client_container: flink-sql-client
+  sql_client_command: /opt/flink/bin/sql-client.sh
+  rest_url: http://localhost:8081
+  checkpoint_interval_seconds: 30
+  savepoint_dir: file:///opt/flink/state/savepoints
+  checkpoint_dir: file:///opt/flink/state/checkpoints
+
+sqlserver:
+  host: host.docker.internal
+  port: 1433
+  username: sa
+  password: Sql1234
+  database: mbs_poc
+  schema: dbo
+  ssl: false
+
+starrocks:
+  host: starrocks-fe
+  query_port: 9030
+  load_port: 8030
+  username: root
+  password: ""
+  database: mbs_analytics
+
+runtime:
+  rendered_sql_dir: runtime/rendered
+  metadata_file: orchestrator/.deploy/deployments.jsonl
+
+template_vars:
+  JOB_NAME: dsb_core_cdc
+  CHECKPOINT_INTERVAL: 30 s
+  CHECKPOINT_DIR: file:///opt/flink/state/checkpoints
+  SQLSERVER_HOST: host.docker.internal
+  SQLSERVER_PORT: "1433"
+  SQLSERVER_USERNAME: sa
+  SQLSERVER_PASSWORD: "Sql1234"
+  SQLSERVER_DATABASE: mbs_poc
+  SQLSERVER_SCHEMA: dbo
+  SQLSERVER_SSL: "false"
+  STARROCKS_HOST: starrocks-fe
+  STARROCKS_QUERY_PORT: "9030"
+  STARROCKS_LOAD_PORT: "8030"
+  STARROCKS_USERNAME: root
+  STARROCKS_PASSWORD: ""
+  STARROCKS_DATABASE: mbs_analytics

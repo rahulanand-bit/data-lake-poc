@@ -1,0 +1,17 @@
+- 3 separate tables - track leads, agent activity, and service requests, with supplementary tables 
+- table names - customer lead(25-30columns), logs(10-15columns) and logs current state(service requests)
+- most of the data is encrypted
+- 2 more tables -Purge and archive
+
+Scenario - If we have to analyse HDFC leads data - 4L *6 logs = 24 lakh 
+         - All banks -6 months = 80-90 lakhs,  so for 2 FY logs = approx. 4 crore
+         - If 3month = 80-80 lakhs then 2FY logs = approx. 8 crore
+
+Problem - while generating reports the system becomes very slow as it contains heavy computation on large number of logs (DSB - most reports / FI- less than DSB but still significant)
+        - using BI to generate reports
+        - need to move data out of current databases to the data lake(as real time as possible) with proper segregation(different banks) and masking(encryption wherever required) to generate reports through this data lake
+        - data purging policy according to the bank needs to be extended to data lake
+        - AI data analysis on data lake.
+Challenges - Incoming data is coming in 2 different ways
+	   - Strict data purging and compliance issues
+	   - processing excel data coming from banks

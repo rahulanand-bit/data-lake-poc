@@ -1,0 +1,37 @@
+Manipal(MBS)
+--------
+- Main business is KYC
+- Data is synced from different db's to reporting DB and then BI tools are connected to this DB for report generation
+- SQL server
+- backend -.net
+- frontend - react(web/android)
+- data is being pulled or synced using some job that replaces the data in real time
+- TB's of data
+- we want to extract agent data extracted from the data lake to measure agent performance
+- AI to do analysis on 200 or so data points from data lake
+- Can't copy transactional data , can copy summarized data but that also after getting banks approval
+- Data purging according to banks policies
+- Reports needed - 1. Revenue(commissions and monthly growths) 2.location and agent based 3. agent(activeness etc) reports
+
+DSB (Highest revenue)
+-----
+- Doorstep banking services - DSB - KYC, NASCH, CPV etc
+- 1 agent can work for multiple banks
+- 1 database with logical bank separations
+
+
+
+FI(Branch outlets or agents)
+-----
+- separate databases for different banks
+- Financial Inclusion (FI) agents operate with two-person teams; one fixed and one mobile.
+- 1 agent works for 1 bank only
+- Data comes from 2 sets of customers - 1. who are using our own asset- from our db to reporting db , 2. customer who are using banks assets - Excel data from bank to db then to reporting server. 
+
+
+Sahibank Partner
+-----
+- Money transfers, recharges and some minor services
+- not much used but still being used for some services
+
+ 

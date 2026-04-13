@@ -1,0 +1,110 @@
+services:
+  jobmanager:
+    image: flink:1.19.1-scala_2.12-java17
+    container_name: flink-jobmanager
+    command: jobmanager
+    ports:
+      - "8081:8081"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        parallelism.default: 1
+        state.backend: filesystem
+        state.checkpoints.dir: file:///opt/flink/state/checkpoints
+        state.savepoints.dir: file:///opt/flink/state/savepoints
+        execution.checkpointing.interval: 30 s
+        execution.checkpointing.mode: EXACTLY_ONCE
+    volumes:
+      - ./connectors:/opt/flink/connectors
+      - ./pipelines:/workspace/pipelines
+      - ./runtime/rendered:/workspace/runtime/rendered
+      - ./runtime/state:/opt/flink/state
+
+  taskmanager:
+    image: flink:1.19.1-scala_2.12-java17
+    container_name: flink-taskmanager
+    command: taskmanager
+    depends_on:
+      - jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+    volumes:
+      - ./connectors:/opt/flink/connectors
+      - ./pipelines:/workspace/pipelines
+      - ./runtime/rendered:/workspace/runtime/rendered
+      - ./runtime/state:/opt/flink/state
+
+  sql-client:
+    image: flink:1.19.1-scala_2.12-java17
+    container_name: flink-sql-client
+    depends_on:
+      - jobmanager
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.address: jobmanager
+        rest.port: 8081
+    volumes:
+      - ./connectors:/opt/flink/connectors
+      - ./pipelines:/workspace/pipelines
+      - ./runtime/rendered:/workspace/runtime/rendered
+      - ./runtime/state:/opt/flink/state
+
+  starrocks-fe:
+    image: starrocks/fe-ubuntu:3.2-latest
+    container_name: starrocks-fe
+    hostname: starrocks-fe
+    user: root
+    command: |
+      bash /opt/starrocks/fe/bin/start_fe.sh --host_type FQDN
+    ports:
+      - "8030:8030"
+      - "9020:9020"
+      - "9030:9030"
+    healthcheck:
+      test: 'mysql -u root -h starrocks-fe -P 9030 -e "SHOW FRONTENDS\\G" | grep "Alive: true"'
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - starrocks_fe_meta:/opt/starrocks/fe/meta
+
+  starrocks-be:
+    image: starrocks/be-ubuntu:3.2-latest
+    container_name: starrocks-be
+    hostname: starrocks-be
+    user: root
+    depends_on:
+      starrocks-fe:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -lc
+      - |
+        ulimit -n 65535
+        sleep 15
+        mysql --connect-timeout 5 -h starrocks-fe -P 9030 -u root -e "ALTER SYSTEM ADD BACKEND 'starrocks-be:9050';" || true
+        bash /opt/starrocks/be/bin/start_be.sh --host_type FQDN
+    ports:
+      - "8040:8040"
+      - "9050:9050"
+      - "9060:9060"
+    environment:
+      - HOST_TYPE=FQDN
+    healthcheck:
+      test: 'mysql -u root -h starrocks-fe -P 9030 -e "SHOW BACKENDS\\G" | grep "starrocks-be" | grep "Alive: true"'
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - starrocks_be_storage:/opt/starrocks/be/storage
+
+volumes:
+  starrocks_fe_meta:
+  starrocks_be_storage:

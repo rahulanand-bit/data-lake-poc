@@ -1,0 +1,32 @@
+name: order_payments
+domain: dsb
+source:
+  database: mbs_poc
+  schema: dbo
+  table: order_payments
+  primary_key:
+    - payment_id
+  cdc_enabled: true
+target:
+  raw_table: order_payments_raw
+columns:
+  - name: payment_id
+    source_type: BIGINT
+    target_type: BIGINT
+    nullable: false
+  - name: order_id
+    source_type: INT
+    target_type: INT
+    nullable: false
+  - name: paid_amount
+    source_type: DECIMAL(12,2)
+    target_type: DECIMAL(12,2)
+    nullable: true
+  - name: payment_status
+    source_type: NVARCHAR(20)
+    target_type: STRING
+    nullable: true
+  - name: paid_at
+    source_type: DATETIME2
+    target_type: TIMESTAMP(3)
+    nullable: true
