@@ -1,1 +1,4 @@
 SQL 2019 pass.txt
+apps\chatbot\node_modules\
+node_modules/
+**/node_modules/

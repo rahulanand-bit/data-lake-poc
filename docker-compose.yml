@@ -105,6 +105,64 @@ services:
     volumes:
       - starrocks_be_storage:/opt/starrocks/be/storage
 
+  sqlsrv1:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlsrv1
+    hostname: sqlsrv1
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Sql1234!
+      - MSSQL_PID=Developer
+      - MSSQL_AGENT_ENABLED=true
+    ports:
+      - "14331:1433"
+    volumes:
+      - sqlsrv1_data:/var/opt/mssql
+
+  sqlsrv2:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlsrv2
+    hostname: sqlsrv2
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Sql1234!
+      - MSSQL_PID=Developer
+      - MSSQL_AGENT_ENABLED=true
+    ports:
+      - "14332:1433"
+    volumes:
+      - sqlsrv2_data:/var/opt/mssql
+
+  sqlsrv3:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlsrv3
+    hostname: sqlsrv3
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Sql1234!
+      - MSSQL_PID=Developer
+      - MSSQL_AGENT_ENABLED=true
+    ports:
+      - "14333:1433"
+    volumes:
+      - sqlsrv3_data:/var/opt/mssql
+
+  postgres:
+    image: postgres:16
+    container_name: analytics-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - analytics_pg_data:/var/lib/postgresql/data
+
 volumes:
   starrocks_fe_meta:
   starrocks_be_storage:
+  sqlsrv1_data:
+  sqlsrv2_data:
+  sqlsrv3_data:
+  analytics_pg_data:

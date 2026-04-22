@@ -1,15 +1,30 @@
 name: orders
 domain: dsb
 source:
-  database: mbs_poc
-  schema: dbo
-  table: orders
+  databases:
+    - source_server_id: srv1
+      database: mbs_poc
+      schema: dbo
+      table: orders
+    - source_server_id: srv2
+      database: mbs_poc
+      schema: dbo
+      table: orders
+    - source_server_id: srv3
+      database: mbs_poc
+      schema: dbo
+      table: orders
   primary_key:
+    - source_server_id
     - order_id
   cdc_enabled: true
 target:
   raw_table: orders_raw
 columns:
+  - name: source_server_id
+    source_type: STRING_LITERAL
+    target_type: STRING
+    nullable: false
   - name: order_id
     source_type: INT
     target_type: INT

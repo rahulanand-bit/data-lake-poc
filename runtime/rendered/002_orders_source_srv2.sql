@@ -1,5 +1,5 @@
--- Source: SQL Server CDC table for orders
-CREATE TABLE IF NOT EXISTS src_orders_cdc (
+-- Source: SQL Server CDC table for orders (srv2)
+CREATE TABLE IF NOT EXISTS src_orders_cdc_srv2 (
     order_id INT,
     customer_name STRING,
     amount DECIMAL(12, 2),
@@ -8,12 +8,12 @@ CREATE TABLE IF NOT EXISTS src_orders_cdc (
     PRIMARY KEY (order_id) NOT ENFORCED
 ) WITH (
     'connector' = 'sqlserver-cdc',
-    'hostname' = '{{SQLSERVER_HOST}}',
-    'port' = '{{SQLSERVER_PORT}}',
-    'username' = '{{SQLSERVER_USERNAME}}',
-    'password' = '{{SQLSERVER_PASSWORD}}',
-    'database-name' = '{{SQLSERVER_DATABASE}}',
-    'table-name' = '{{SQLSERVER_SCHEMA}}.orders',
+    'hostname' = 'sqlsrv2',
+    'port' = '1433',
+    'username' = 'sa',
+    'password' = 'Sql1234!',
+    'database-name' = 'mbs_poc',
+    'table-name' = 'dbo.orders',
     'scan.startup.mode' = 'initial',
     'debezium.snapshot.mode' = 'initial',
     'debezium.database.encrypt' = 'false',

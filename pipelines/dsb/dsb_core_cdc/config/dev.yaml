@@ -15,14 +15,34 @@ flink:
   savepoint_dir: file:///opt/flink/state/savepoints
   checkpoint_dir: file:///opt/flink/state/checkpoints
 
-sqlserver:
-  host: host.docker.internal
-  port: 1433
-  username: sa
-  password: Sql1234
-  database: mbs_poc
-  schema: dbo
-  ssl: false
+sqlservers:
+  - source_server_id: srv1
+    host: sqlsrv1
+    port: 1433
+    username: sa
+    password: Sql1234!
+    database: mbs_poc
+    schema: dbo
+    table: orders
+    ssl: false
+  - source_server_id: srv2
+    host: sqlsrv2
+    port: 1433
+    username: sa
+    password: Sql1234!
+    database: mbs_poc
+    schema: dbo
+    table: orders
+    ssl: false
+  - source_server_id: srv3
+    host: sqlsrv3
+    port: 1433
+    username: sa
+    password: Sql1234!
+    database: mbs_poc
+    schema: dbo
+    table: orders
+    ssl: false
 
 starrocks:
   host: starrocks-fe
@@ -40,13 +60,6 @@ template_vars:
   JOB_NAME: dsb_core_cdc
   CHECKPOINT_INTERVAL: 30 s
   CHECKPOINT_DIR: file:///opt/flink/state/checkpoints
-  SQLSERVER_HOST: host.docker.internal
-  SQLSERVER_PORT: "1433"
-  SQLSERVER_USERNAME: sa
-  SQLSERVER_PASSWORD: "Sql1234"
-  SQLSERVER_DATABASE: mbs_poc
-  SQLSERVER_SCHEMA: dbo
-  SQLSERVER_SSL: "false"
   STARROCKS_HOST: starrocks-fe
   STARROCKS_QUERY_PORT: "9030"
   STARROCKS_LOAD_PORT: "8030"

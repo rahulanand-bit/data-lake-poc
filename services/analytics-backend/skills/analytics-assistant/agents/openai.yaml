@@ -1,0 +1,5 @@
+version: 1
+interface:
+  display_name: Analytics Assistant
+  short_description: Governed analytics skill with RBAC-aware tool routing.
+  default_prompt: Answer the user's analytics question by selecting one allowed tool and returning only structured tool input.

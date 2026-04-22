@@ -3,6 +3,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import urllib.error
@@ -13,6 +14,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SOURCE_FILE_PATTERN = re.compile(r".*_([A-Za-z0-9_-]+)\.sql$")
 
 
 def load_config(config_path: Path) -> dict:
@@ -37,12 +39,56 @@ def render_template(content: str, template_vars: dict) -> str:
     return rendered
 
 
-def render_sql_files(sql_files: list[Path], render_dir: Path, template_vars: dict) -> list[Path]:
+def source_vars_by_id(config: dict) -> dict[str, dict]:
+    sqlservers = config.get("sqlservers", [])
+    if not sqlservers:
+        raise RuntimeError("No sqlservers configured in config file.")
+
+    source_map: dict[str, dict] = {}
+    for source in sqlservers:
+        source_id = source.get("source_server_id")
+        if not source_id:
+            raise RuntimeError("Each sqlservers entry must include source_server_id.")
+        if source_id in source_map:
+            raise RuntimeError(f"Duplicate source_server_id found: {source_id}")
+        source_map[source_id] = source
+    return source_map
+
+
+def build_source_template_vars(source: dict) -> dict:
+    return {
+        "SQLSERVER_HOST": source["host"],
+        "SQLSERVER_PORT": str(source["port"]),
+        "SQLSERVER_USERNAME": source["username"],
+        "SQLSERVER_PASSWORD": str(source["password"]),
+        "SQLSERVER_DATABASE": source["database"],
+        "SQLSERVER_SCHEMA": source["schema"],
+        "SQLSERVER_TABLE": source["table"],
+        "SQLSERVER_SSL": str(source.get("ssl", False)).lower(),
+    }
+
+
+def render_sql_files(sql_files: list[Path], render_dir: Path, template_vars: dict, config: dict) -> list[Path]:
     render_dir.mkdir(parents=True, exist_ok=True)
     rendered_files: list[Path] = []
+    source_map = source_vars_by_id(config)
     for source_file in sql_files:
         content = source_file.read_text(encoding="utf-8")
-        rendered = render_template(content, template_vars)
+        vars_for_file = dict(template_vars)
+        if source_file.parent.name == "00_sources":
+            match = SOURCE_FILE_PATTERN.match(source_file.name)
+            if not match:
+                raise RuntimeError(
+                    f"Source SQL file name must end with _<source_server_id>.sql: {source_file.name}"
+                )
+            source_id = match.group(1)
+            if source_id not in source_map:
+                raise RuntimeError(
+                    f"No sqlservers entry for source_server_id '{source_id}' required by {source_file.name}"
+                )
+            vars_for_file.update(build_source_template_vars(source_map[source_id]))
+
+        rendered = render_template(content, vars_for_file)
         target_file = render_dir / source_file.name
         target_file.write_text(rendered, encoding="utf-8")
         rendered_files.append(target_file)
@@ -146,7 +192,7 @@ def cmd_deploy(config: dict) -> None:
     if not sql_files:
         raise RuntimeError(f"No SQL files found under {sql_root}")
 
-    rendered_files = render_sql_files(sql_files, render_dir, template_vars)
+    rendered_files = render_sql_files(sql_files, render_dir, template_vars, config)
     run_sql_files(
         config["flink"]["sql_client_container"],
         config["flink"]["sql_client_command"],
@@ -161,6 +207,7 @@ def cmd_deploy(config: dict) -> None:
         "domain": job["domain"],
         "sql_checksum": checksum(rendered_files),
         "file_count": len(rendered_files),
+        "source_count": len(config.get("sqlservers", [])),
         "status": "deployed",
     }
     append_metadata(metadata_file, payload)

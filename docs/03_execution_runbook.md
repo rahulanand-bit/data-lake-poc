@@ -10,6 +10,29 @@
    - `flink-connector-starrocks-1.2.14_flink-1.19.jar`
    - `mssql-jdbc-13.4.0.jre11.jar`
 
+## Verify SQL Server version (3-source containers)
+Use these checks to confirm all source DB containers are SQL Server 2019.
+
+1. Check image tags:
+   ```powershell
+   docker ps --format "table {{.Names}}`t{{.Image}}`t{{.Status}}"
+   ```
+   Expected for sources:
+   - `sqlsrv1  mcr.microsoft.com/mssql/server:2019-latest`
+   - `sqlsrv2  mcr.microsoft.com/mssql/server:2019-latest`
+   - `sqlsrv3  mcr.microsoft.com/mssql/server:2019-latest`
+
+2. Check engine version from each container:
+   ```powershell
+   docker exec sqlsrv1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Sql1234!" -C -Q "SELECT @@VERSION"
+   docker exec sqlsrv2 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Sql1234!" -C -Q "SELECT @@VERSION"
+   docker exec sqlsrv3 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Sql1234!" -C -Q "SELECT @@VERSION"
+   ```
+   Expected result contains:
+   - `Microsoft SQL Server 2019`
+   - `15.x` build (for example `15.0.4465.1`)
+   - `Developer Edition (64-bit)`
+
 ## Working topology
 This local POC now uses a proper StarRocks cluster layout:
 - `starrocks-fe` : FE service
@@ -50,10 +73,38 @@ Port `8030` is the FE HTTP service used by the Flink StarRocks connector for str
 
 ## Configure environment
 Edit [dev.yaml](/C:/Users/caw-dev/Desktop/data_lake/pipelines/dsb/dsb_core_cdc/config/dev.yaml):
-- `sqlserver.password`
-- `template_vars.SQLSERVER_PASSWORD`
+- `sqlservers` list (`source_server_id`, host, port, user, password, database, schema, table)
 
 The local SQL Server host remains `host.docker.internal`, which allows the Flink containers to reach SQL Server on the Windows host.
+
+Sample multi-server section:
+```yaml
+sqlservers:
+  - source_server_id: srv1
+    host: host.docker.internal
+    port: 1433
+    username: sa
+    password: Sql1234
+    database: mbs_poc
+    schema: dbo
+    table: orders
+  - source_server_id: srv2
+    host: host.docker.internal
+    port: 1433
+    username: sa
+    password: Sql1234
+    database: mbs_poc
+    schema: dbo
+    table: orders
+  - source_server_id: srv3
+    host: host.docker.internal
+    port: 1433
+    username: sa
+    password: Sql1234
+    database: mbs_poc
+    schema: dbo
+    table: orders
+```
 
 ## Deploy pipeline
 1. Install Python dependencies if needed:
@@ -85,20 +136,33 @@ py orchestrator/deploy.py restart
 ```
 
 ## Validate CDC end-to-end
-1. Insert or update a row in SQL Server:
-   ```sql
-   USE mbs_poc;
-   GO
-
-   INSERT INTO dbo.orders (order_id, customer_name, amount, status, updated_at)
-   VALUES (7001, 'Runbook Test', 456.78, 'NEW', SYSDATETIME());
-   GO
-   ```
-2. Query StarRocks:
+1. Insert or update rows in each SQL Server source.
+2. Query StarRocks totals and per-source counts:
    ```powershell
-   docker exec starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot -e "SELECT * FROM mbs_analytics.orders_raw WHERE order_id = 7001;"
+   docker exec starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot -e "SELECT COUNT(*) AS total_rows FROM mbs_analytics.orders_raw; SELECT source_server_id, COUNT(*) AS rows_per_source FROM mbs_analytics.orders_raw GROUP BY source_server_id ORDER BY source_server_id;"
    ```
-3. Confirm the row appears in StarRocks.
+3. Query one known key by lineage:
+   ```powershell
+   docker exec starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot -e "SELECT source_server_id, order_id, customer_name, amount, status, updated_at, ingest_ts FROM mbs_analytics.orders_raw WHERE source_server_id IN ('srv1','srv2','srv3') AND order_id = 7001 ORDER BY source_server_id;"
+   ```
+4. Confirm rows from each server arrive with the correct `source_server_id`.
+
+## Lag/health checks
+1. Flink job state:
+   ```powershell
+   py orchestrator/deploy.py status
+   ```
+2. StarRocks ingest freshness:
+   ```powershell
+   docker exec starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot -e "SELECT source_server_id, MAX(updated_at) AS max_source_ts, MAX(ingest_ts) AS max_ingest_ts FROM mbs_analytics.orders_raw GROUP BY source_server_id ORDER BY source_server_id;"
+   ```
+3. Optional point validation query:
+   ```sql
+   SELECT source_server_id, order_id, status, updated_at, ingest_ts
+   FROM mbs_analytics.orders_raw
+   ORDER BY source_server_id, order_id DESC
+   LIMIT 20;
+   ```
 
 ## Live monitoring
 Flink task execution and sink errors:
@@ -131,6 +195,9 @@ Press `Ctrl + C` to stop following logs.
 - CDC source starts but no data lands:
   - Check `flink-taskmanager` logs first.
   - Then verify `SHOW BACKENDS;` from StarRocks FE.
+- Missing source_server_id lineage:
+  - Confirm source SQL files are named with suffix `_srv1.sql`, `_srv2.sql`, `_srv3.sql`.
+  - Confirm matching IDs exist in `sqlservers` list in `dev.yaml`.
 - StarRocks FE is healthy but BE is not:
   - Wait for `starrocks-be` to finish registering.
   - Recheck with `SHOW BACKENDS;`.

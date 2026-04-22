@@ -1,12 +1,13 @@
 -- Flink sink table definitions for POC direct landing (raw tables)
 CREATE TABLE IF NOT EXISTS sink_orders_raw (
+    source_server_id STRING,
     order_id INT,
     customer_name STRING,
     amount DECIMAL(12, 2),
     status STRING,
     updated_at TIMESTAMP(3),
     ingest_ts TIMESTAMP(3),
-    PRIMARY KEY (order_id) NOT ENFORCED
+    PRIMARY KEY (source_server_id, order_id) NOT ENFORCED
 ) WITH (
     'connector' = 'starrocks',
     'jdbc-url' = 'jdbc:mysql://{{STARROCKS_HOST}}:{{STARROCKS_QUERY_PORT}}',
