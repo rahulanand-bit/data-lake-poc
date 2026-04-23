@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS orders_raw (
     customer_name STRING,
     amount DECIMAL(12, 2),
     status STRING,
+    order_label STRING,
     updated_at DATETIME,
     ingest_ts DATETIME
 )

@@ -7,7 +7,7 @@ import { PolicyEngine } from "./policy/engine.js";
 import { buildRenderSpec } from "./render/buildRenderSpec.js";
 import { routeSkill } from "./skill/analyticsAssistant.js";
 import { executeTool } from "./tools/executor.js";
-import type { ChatRequest, ChatResponse, ToolInput, ToolName } from "./types.js";
+import type { ChatPlanRequest, ChatPlanResponse, ChatRequest, ChatResponse, ToolInput, ToolName } from "./types.js";
 
 const rbacRepository = new RbacRepository(pgPool);
 const policyEngine = new PolicyEngine(rbacRepository);
@@ -15,14 +15,104 @@ const policyEngine = new PolicyEngine(rbacRepository);
 export async function runChatQuery(input: ChatRequest): Promise<ChatResponse> {
   const started = Date.now();
   const requestId = randomUUID();
-  const routed = await routeSkill(input.message);
-  return runToolRequest({
+  const plan = await buildToolPlan({
+    message: input.message,
     user_id: input.user_id,
     role: input.role,
-    routed,
     started,
     requestId,
   });
+
+  if (!plan.policy_decision.allow) {
+    return deniedResponse({
+      tool: plan.tool_selected,
+      toolInput: plan.tool_input,
+      policyReason: plan.policy_decision.reason,
+      latencyMs: plan.meta.latency_ms,
+      provider: plan.meta.model_provider,
+      fallbackUsed: plan.meta.fallback_used,
+    });
+  }
+
+  return runToolRequest({
+    user_id: input.user_id,
+    role: input.role,
+    routed: {
+      tool: plan.tool_selected,
+      toolInput: plan.tool_input,
+      provider: plan.meta.model_provider,
+      fallbackUsed: plan.meta.fallback_used,
+    },
+    started,
+    requestId,
+  });
+}
+
+export async function runChatPlan(input: ChatPlanRequest): Promise<ChatPlanResponse> {
+  const started = Date.now();
+  const requestId = randomUUID();
+  return buildToolPlan({
+    message: input.message,
+    user_id: input.user_id,
+    role: input.role,
+    started,
+    requestId,
+  });
+}
+
+async function buildToolPlan(input: {
+  message: string;
+  user_id: string;
+  role?: string;
+  started: number;
+  requestId: string;
+}): Promise<ChatPlanResponse> {
+  const user = await rbacRepository.resolveUserContext(input.user_id, input.role);
+  const routed = await routeSkill(input.message);
+
+  const toolPolicy = await policyEngine.authorizeTool(user, routed.tool, input.requestId);
+  if (!toolPolicy.allow) {
+    return {
+      tool_selected: routed.tool,
+      tool_input: routed.toolInput,
+      policy_decision: toolPolicy,
+      meta: {
+        model_mode: cfg.modelMode,
+        model_provider: routed.provider,
+        fallback_used: routed.fallbackUsed,
+        latency_ms: Date.now() - input.started,
+        request_id: input.requestId,
+      },
+    };
+  }
+
+  const fieldValidation = await policyEngine.validateInput(user, routed.toolInput);
+  if (!fieldValidation.decision.allow) {
+    await rbacRepository.recordPolicyAudit({
+      requestId: input.requestId,
+      userId: user.userId,
+      role: user.role,
+      decision: fieldValidation.decision,
+    });
+  }
+
+  return {
+    tool_selected: routed.tool,
+    tool_input: fieldValidation.cleanedInput,
+    policy_decision: fieldValidation.decision.allow
+      ? {
+          ...fieldValidation.decision,
+          applied_scopes: user.scopes,
+        }
+      : fieldValidation.decision,
+    meta: {
+      model_mode: cfg.modelMode,
+      model_provider: routed.provider,
+      fallback_used: routed.fallbackUsed,
+      latency_ms: Date.now() - input.started,
+      request_id: input.requestId,
+    },
+  };
 }
 
 export async function runToolRequest(input: {

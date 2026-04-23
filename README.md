@@ -57,6 +57,12 @@ StarRocks SQL credentials for this local FE setup:
 - Open: `http://localhost:3001`
 - Detailed test steps: [Chatbot Test Runbook](/C:/Users/caw-dev/Desktop/data_lake/docs/05_chatbot_test_runbook.md)
 
+## Codex MCP Integration
+- MCP wrapper service: `services/analytics-mcp`
+- Purpose: expose analytics backend skills/tools to Codex chat via MCP tools.
+- Default Codex NL path: backend `/chat/plan` (skill decides) -> direct tool execution (Codex executes).
+- Setup/run details: [Analytics MCP README](/C:/Users/caw-dev/Desktop/data_lake/services/analytics-mcp/README.md)
+
 ## Project docs
 - [Architecture Flow](/C:/Users/caw-dev/Desktop/data_lake/docs/01_architecture_flow.md)
 - [Repository Structure](/C:/Users/caw-dev/Desktop/data_lake/docs/02_repo_structure.md)

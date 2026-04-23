@@ -41,6 +41,10 @@ columns:
     source_type: NVARCHAR(20)
     target_type: STRING
     nullable: true
+  - name: order_label
+    source_type: DERIVED(CONCAT(COALESCE(customer_name,''), '-', COALESCE(status,''), '-', CAST(order_id AS STRING)))
+    target_type: STRING
+    nullable: false
   - name: updated_at
     source_type: DATETIME2
     target_type: TIMESTAMP(3)

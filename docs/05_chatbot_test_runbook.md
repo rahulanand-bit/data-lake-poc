@@ -65,6 +65,19 @@ Expected:
 - `tool_output.policy_decision`
 - `render_spec`
 
+Planner-only test (no query execution):
+```powershell
+curl -X POST http://localhost:4000/chat/plan `
+  -H "Content-Type: application/json" `
+  -d "{\"message\":\"total amount by source_server_id\",\"user_id\":\"u_admin\"}"
+```
+
+Expected:
+- `tool_selected` + `tool_input`
+- `policy_decision`
+- `meta.request_id`
+- no `dataset` payload (planning only)
+
 ## 6) GraphQL Tool Test
 
 ```powershell
@@ -98,5 +111,26 @@ Expected: tool result payload with `policy_allow=true`.
 - `MODEL_MODE=live`: uses provider routing (Gemini/OpenAI/Claude) to generate tool-call args.
 
 If live mode fails, response should return meaningful safe-generation error; no static SQL fallback is used.
+
+## 9) Codex MCP Tooling Test
+
+1. Build MCP wrapper:
+```powershell
+cd services\analytics-mcp
+npm install
+Copy-Item .env.example .env
+npm run build
+```
+
+2. Register MCP server in Codex config:
+- follow [services/analytics-mcp/README.md](/C:/Users/caw-dev/Desktop/data_lake/services/analytics-mcp/README.md)
+
+3. Restart Codex and test tools:
+- `analytics_health`
+- `ask_analytics` with message `show latest orders` (default path: skill plan + direct tool execute)
+- `trends` with structured input (`intent`, `metrics`, `group_by`, `limit`)
+
+Expected:
+- structured outputs include policy decision, query id, and dataset payload.
 
 

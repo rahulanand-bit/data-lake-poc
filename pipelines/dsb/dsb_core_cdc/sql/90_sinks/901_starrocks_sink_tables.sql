@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS sink_orders_raw (
     customer_name STRING,
     amount DECIMAL(12, 2),
     status STRING,
+    order_label STRING,
     updated_at TIMESTAMP(3),
     ingest_ts TIMESTAMP(3),
     PRIMARY KEY (source_server_id, order_id) NOT ENFORCED

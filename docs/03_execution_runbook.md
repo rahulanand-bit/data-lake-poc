@@ -70,6 +70,7 @@ Port `8030` is the FE HTTP service used by the Flink StarRocks connector for str
    ```powershell
    Get-Content .\docs\starrocks_bootstrap.sql -Raw | docker exec -i starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot
    ```
+   Note: this script drops and recreates `orders_raw` for local POC schema alignment.
 
 ## Configure environment
 Edit [dev.yaml](/C:/Users/caw-dev/Desktop/data_lake/pipelines/dsb/dsb_core_cdc/config/dev.yaml):
@@ -143,9 +144,23 @@ py orchestrator/deploy.py restart
    ```
 3. Query one known key by lineage:
    ```powershell
-   docker exec starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot -e "SELECT source_server_id, order_id, customer_name, amount, status, updated_at, ingest_ts FROM mbs_analytics.orders_raw WHERE source_server_id IN ('srv1','srv2','srv3') AND order_id = 7001 ORDER BY source_server_id;"
+   docker exec starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot -e "SELECT source_server_id, order_id, customer_name, status, order_label, amount, updated_at, ingest_ts FROM mbs_analytics.orders_raw WHERE source_server_id IN ('srv1','srv2','srv3') AND order_id = 7001 ORDER BY source_server_id;"
    ```
 4. Confirm rows from each server arrive with the correct `source_server_id`.
+
+## Verify derived combination column (`order_label`)
+The pipeline now derives:
+`order_label = CONCAT(COALESCE(customer_name,''), '-', COALESCE(status,''), '-', CAST(order_id AS STRING))`
+
+1. Check `order_label` values in StarRocks:
+   ```powershell
+   docker exec starrocks-fe mysql --protocol=TCP -h 127.0.0.1 -P 9030 -uroot -e "SELECT source_server_id, order_id, customer_name, status, order_label FROM mbs_analytics.orders_raw ORDER BY source_server_id, order_id DESC LIMIT 20;"
+   ```
+2. Update one source row in SQL Server (`customer_name` or `status`).
+3. Re-run the query above and confirm the same `(source_server_id, order_id)` row has updated `order_label`.
+4. Null handling check:
+   - Set `customer_name` or `status` to `NULL` in source.
+   - Verify `order_label` still has a non-null value with empty-string substitution.
 
 ## Lag/health checks
 1. Flink job state:

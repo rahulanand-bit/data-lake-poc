@@ -3,7 +3,7 @@ import express from "express";
 import { graphql } from "graphql";
 import { z } from "zod";
 
-import { runChatQuery } from "./chatService.js";
+import { runChatPlan, runChatQuery } from "./chatService.js";
 import { cfg } from "./config.js";
 import { schema } from "./graphql/schema.js";
 
@@ -30,6 +30,18 @@ app.post("/chat/query", async (req, res) => {
   try {
     const payload = chatSchema.parse(req.body);
     const response = await runChatQuery(payload);
+    res.json(response);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown backend error";
+    const status = /denied|missing|unknown|inactive|not allowed|not assigned/i.test(message) ? 403 : 400;
+    res.status(status).json({ error: message });
+  }
+});
+
+app.post("/chat/plan", async (req, res) => {
+  try {
+    const payload = chatSchema.parse(req.body);
+    const response = await runChatPlan(payload);
     res.json(response);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown backend error";

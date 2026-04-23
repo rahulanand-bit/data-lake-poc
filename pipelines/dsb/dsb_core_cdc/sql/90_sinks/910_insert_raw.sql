@@ -6,6 +6,7 @@ SELECT
     customer_name,
     amount,
     status,
+    CONCAT(COALESCE(customer_name, ''), '-', COALESCE(status, ''), '-', CAST(order_id AS STRING)) AS order_label,
     updated_at,
     CURRENT_TIMESTAMP AS ingest_ts
 FROM src_orders_cdc_srv1
@@ -16,6 +17,7 @@ SELECT
     customer_name,
     amount,
     status,
+    CONCAT(COALESCE(customer_name, ''), '-', COALESCE(status, ''), '-', CAST(order_id AS STRING)) AS order_label,
     updated_at,
     CURRENT_TIMESTAMP AS ingest_ts
 FROM src_orders_cdc_srv2
@@ -26,6 +28,7 @@ SELECT
     customer_name,
     amount,
     status,
+    CONCAT(COALESCE(customer_name, ''), '-', COALESCE(status, ''), '-', CAST(order_id AS STRING)) AS order_label,
     updated_at,
     CURRENT_TIMESTAMP AS ingest_ts
 FROM src_orders_cdc_srv3;

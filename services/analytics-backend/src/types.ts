@@ -32,6 +32,8 @@ export type ChatRequest = {
   role?: string;
 };
 
+export type ChatPlanRequest = ChatRequest;
+
 export type ChatResponse = {
   answer_text: string;
   tool_selected: ToolName;
@@ -43,6 +45,19 @@ export type ChatResponse = {
     model_provider: ModelProvider | "none";
     fallback_used: boolean;
     latency_ms: number;
+  };
+};
+
+export type ChatPlanResponse = {
+  tool_selected: ToolName;
+  tool_input: ToolInput;
+  policy_decision: PolicyDecision;
+  meta: {
+    model_mode: ModelMode;
+    model_provider: ModelProvider | "none";
+    fallback_used: boolean;
+    latency_ms: number;
+    request_id: string;
   };
 };
 
